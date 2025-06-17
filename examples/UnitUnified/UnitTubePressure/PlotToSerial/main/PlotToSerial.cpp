@@ -49,7 +49,6 @@ bool render_pressure(const float pressure)
 
 }  // namespace
 
-
 void setup()
 {
     M5.begin();
