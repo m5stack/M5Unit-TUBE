@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 /*
-  UnitTest for UnitPaHub
+  UnitTest for UnitTube
 */
 #include <gtest/gtest.h>
 #include <Wire.h>
