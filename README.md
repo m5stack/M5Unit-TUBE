@@ -37,7 +37,7 @@ See also [M5Unit-HUB](https://github.com/m5stack/M5Unit-HUB)
 See also [examples/UnitUnified](examples/UnitUnified)
 
 ## Doxygen document
-[GitHub Pages](https://m5stack.github.io/M5Unit-HUB/)
+[GitHub Pages](https://m5stack.github.io/M5Unit-TUBE/)
 
 If you want to generate documents on your local machine, execute the following command
 
