@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 /*
-  Example using M5UnitUnified for UnitTVOC
+  Example using M5UnitUnified for UnitTubePressure
 */
 #include <M5Unified.h>
 #include <M5UnitUnified.h>
