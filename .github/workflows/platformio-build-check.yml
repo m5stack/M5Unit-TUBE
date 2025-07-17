@@ -55,7 +55,6 @@ jobs:
       matrix:
         example:
           - PlotToSerial
-          - ViaPbHub
 
         unit:
           - UnitTubePressure
@@ -81,6 +80,14 @@ jobs:
 
         espressif32:
           - latest
+
+        include:
+          # Specific sketches
+          - example: ViaPbHub
+            unit: UnitTubePressure
+            board: Core
+            framework: Arduino
+            espressif32: latest
 
     steps:
       - name: Checkout
