@@ -24,7 +24,7 @@ See also examples using conventional methods here.
 - [M5Unit-TUBE- MIT](LICENSE)
 
 
-### Support via [PbHub](https://docs.m5stack.com/en/unit/pbhub_1.1)
+## Support via [PbHub](https://docs.m5stack.com/en/unit/pbhub_1.1)
 
 |Unit|Support|
 |---|---|
@@ -49,6 +49,6 @@ It will output it under docs/html
 If you want to output Git commit hashes to html, do it for the git cloned folder.
 
 ### Required
-- [Doxyegn](https://www.doxygen.nl/)
+- [Doxygen](https://www.doxygen.nl/)
 - [pcregrep](https://formulae.brew.sh/formula/pcre2)
 - [Git](https://git-scm.com/) (Output commit hash to html)
