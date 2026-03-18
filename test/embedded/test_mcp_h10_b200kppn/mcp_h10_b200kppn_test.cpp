@@ -11,22 +11,18 @@
 #include <M5Unified.h>
 #include <M5UnitUnified.hpp>
 #include <googletest/test_template.hpp>
+#include <googletest/test_helper.hpp>
 #include <unit/unit_MCP_H10.hpp>
-#include <chrono>
 #include <cmath>
-#include <iostream>
-#include <vector>
 
 using namespace m5::unit::googletest;
 using namespace m5::unit;
 using namespace m5::unit::mcp_h10;
 using namespace m5::unit::types;
 
-const ::testing::Environment* global_fixture = ::testing::AddGlobalTestEnvironment(new GlobalFixture<400000U>());
-
 constexpr uint32_t STORED_SIZE{8};
 
-class TestMCP_H10_B200KPPN : public GPIOComponentTestBase<UnitMCP_H10_B200KPPN, bool> {
+class TestMCP_H10_B200KPPN : public GPIOComponentTestBase<UnitMCP_H10_B200KPPN> {
 protected:
     virtual UnitMCP_H10_B200KPPN* get_instance() override
     {
@@ -36,56 +32,78 @@ protected:
         ptr->component_config(ccfg);
         return ptr;
     }
-    virtual bool is_using_hal() const override
-    {
-        return GetParam();
-    };
 };
 
-// INSTANTIATE_TEST_SUITE_P(ParamValues, TestMCP_H10_B200KPPN, ::testing::Values(false, true));
-// INSTANTIATE_TEST_SUITE_P(ParamValues, TestMCP_H10_B200KPPN,::testing::Values(true));
-INSTANTIATE_TEST_SUITE_P(ParamValues, TestMCP_H10_B200KPPN, ::testing::Values(false));
-
-namespace {
-template <class U>
-elapsed_time_t test_periodic(U* unit, const uint32_t times, const uint32_t measure_duration = 0)
+TEST_F(TestMCP_H10_B200KPPN, Properties)
 {
-    auto tm         = unit->interval();
-    auto timeout_at = m5::utility::millis() + 10 * 1000;
+    SCOPED_TRACE(ustr);
 
-    do {
-        unit->update();
-        if (unit->updated()) {
-            break;
-        }
-        std::this_thread::yield();
-    } while (!unit->updated() && m5::utility::millis() <= timeout_at);
-    // timeout
-    if (!unit->updated()) {
-        return 0;
-    }
-
-    //
-    uint32_t measured{};
-    auto start_at = m5::utility::millis();
-    timeout_at    = start_at + (times * (tm + measure_duration) * 2);
-
-    do {
-        unit->update();
-        measured += unit->updated() ? 1 : 0;
-        if (measured >= times) {
-            break;
-        }
-        // std::this_thread::yield();
-        m5::utility::delay(1);
-
-    } while (measured < times && m5::utility::millis() <= timeout_at);
-    return (measured == times) ? m5::utility::millis() - start_at : 0;
-    // return (measured == times) ? unit->updatedMillis() - start_at : 0;
+    // MCP-H10-B200KPPN datasheet constants
+    EXPECT_FLOAT_EQ(unit->coefficient(), 100.0f);
+    EXPECT_FLOAT_EQ(unit->offset(), -110.0f);
+    EXPECT_FLOAT_EQ(unit->minimumVoltage(), 0.1f);
+    EXPECT_FLOAT_EQ(unit->maximumVoltage(), 3.1f);
+    EXPECT_FLOAT_EQ(unit->voltageRange(), 3.0f);
 }
-}  // namespace
 
-TEST_P(TestMCP_H10_B200KPPN, Periodic)
+TEST_F(TestMCP_H10_B200KPPN, Calibration)
+{
+    SCOPED_TRACE(ustr);
+
+    // Initially not calibrated
+    EXPECT_FALSE(unit->isCalibrated());
+
+    // Set calibration: voltage at zero pressure
+    // Ideal zero voltage = -offset / coefficient = 110 / 100 = 1.1V
+    unit->setCalibration(1.2f);
+    EXPECT_TRUE(unit->isCalibrated());
+
+    // Read with calibration applied
+    EXPECT_TRUE(unit->stopPeriodicMeasurement());
+    Data d{};
+    EXPECT_TRUE(unit->measureSingleshot(d));
+    EXPECT_TRUE(std::isfinite(d.pressure()));
+    float calibrated_pressure = d.pressure();
+
+    // Clear calibration
+    unit->clearCalibration();
+    EXPECT_FALSE(unit->isCalibrated());
+
+    // Read without calibration
+    EXPECT_TRUE(unit->measureSingleshot(d));
+    EXPECT_TRUE(std::isfinite(d.pressure()));
+    float uncalibrated_pressure = d.pressure();
+
+    // Calibrated and uncalibrated should differ (unless voltage happens to be exactly ideal zero)
+    // The calibration offset is 1.2 - 1.1 = 0.1V, so pressure diff = 100 * 0.1 = 10 kPa
+    // Allow some tolerance for ADC noise between two reads
+    M5_LOGI("Calibrated: %.2f, Uncalibrated: %.2f", calibrated_pressure, uncalibrated_pressure);
+}
+
+TEST_F(TestMCP_H10_B200KPPN, Config)
+{
+    SCOPED_TRACE(ustr);
+
+    // Default config starts periodic measurement
+    EXPECT_TRUE(unit->inPeriodic());
+
+    // Stop and reconfigure
+    EXPECT_TRUE(unit->stopPeriodicMeasurement());
+
+    auto cfg          = unit->config();
+    cfg.start_periodic = false;
+    cfg.interval_ms    = 200;
+    cfg.calib_vzero    = 1.15f;
+    unit->config(cfg);
+
+    // Verify config is stored
+    auto cfg2 = unit->config();
+    EXPECT_FALSE(cfg2.start_periodic);
+    EXPECT_EQ(cfg2.interval_ms, 200U);
+    EXPECT_FLOAT_EQ(cfg2.calib_vzero, 1.15f);
+}
+
+TEST_F(TestMCP_H10_B200KPPN, Periodic)
 {
     SCOPED_TRACE(ustr);
 
@@ -97,13 +115,14 @@ TEST_P(TestMCP_H10_B200KPPN, Periodic)
     constexpr uint32_t it{150};
 
     EXPECT_TRUE(unit->startPeriodicMeasurement(it));
-    auto elapsed = test_periodic(unit.get(), STORED_SIZE, it);
+    auto r = collect_periodic_measurements(unit.get(), STORED_SIZE);
 
     EXPECT_TRUE(unit->stopPeriodicMeasurement());
     EXPECT_FALSE(unit->inPeriodic());
 
-    EXPECT_NE(elapsed, 0);
-    EXPECT_GE(elapsed, STORED_SIZE * it);
+    EXPECT_FALSE(r.timed_out);
+    EXPECT_EQ(r.update_count, STORED_SIZE);
+    EXPECT_LE(r.median(), r.expected_interval + 1);
 
     //
     EXPECT_EQ(unit->available(), STORED_SIZE);
@@ -129,7 +148,7 @@ TEST_P(TestMCP_H10_B200KPPN, Periodic)
     EXPECT_FALSE(std::isfinite(unit->pressure()));
 }
 
-TEST_P(TestMCP_H10_B200KPPN, Singleshot)
+TEST_F(TestMCP_H10_B200KPPN, Singleshot)
 {
     SCOPED_TRACE(ustr);
 
