@@ -5,7 +5,7 @@
  */
 /*!
   @file M5UnitUnifiedTUBE.h
-  @brief Main header of M5Unit-TUBE using M5UnitUnfied
+  @brief Main header of M5Unit-TUBE using M5UnitUnified
 */
 #ifndef M5_UNIT_UNIFIED_TUBE_H
 #define M5_UNIT_UNIFIED_TUBE_H

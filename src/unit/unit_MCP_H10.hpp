@@ -5,7 +5,7 @@
  */
 /*!
   @file unit_MCP_H10.hpp
-  @brief MCP-H10 Failiy unit for M5UnitUnified
+  @brief MCP-H10 Family unit for M5UnitUnified
  */
 #ifndef M5_UNIT_TUBE_UNIT_MCP_H10_HPP
 #define M5_UNIT_TUBE_UNIT_MCP_H10_HPP
@@ -27,8 +27,8 @@ namespace mcp_h10 {
   @brief Measurement data group
  */
 struct Data {
-    uint16_t raw{};   // Raw data
-    float voltage{};  // Calculated voltage
+    uint16_t raw{};   // ADC reading in millivolts
+    float voltage{};  // Voltage after clamp and calibration
 
     inline float pressure() const
     {
@@ -84,7 +84,7 @@ public:
     /*!
       @brief Constructor
       @param minV OL
-      @param minV OH
+      @param maxV OH
       @param coefficient k
       @param offset B
      */
@@ -117,12 +117,12 @@ public:
 
     ///@name Settings for begin
     ///@{
-    /*! @brief Gets the configration */
+    /*! @brief Gets the configuration */
     inline config_t config()
     {
         return _cfg;
     }
-    //! @brief Set the configration
+    //! @brief Set the configuration
     inline void config(const config_t& cfg)
     {
         _cfg = cfg;
@@ -193,7 +193,7 @@ public:
     ///@{
     /*!
       @brief Measurement single shot
-      @param[out] data Measuerd data
+      @param[out] data Measured data
       @warning During periodic detection runs, an error is returned
     */
     bool measureSingleshot(mcp_h10::Data& d);
@@ -223,6 +223,8 @@ public:
 
 protected:
     bool read_measurement(mcp_h10::Data& d);
+    bool read_voltage_millivolts(float& voltage, uint16_t& raw);
+    bool read_voltage_via_pbhub(float& voltage, uint16_t& raw);
     bool start_periodic_measurement(const uint32_t interval);
     bool stop_periodic_measurement();
 
@@ -234,6 +236,7 @@ private:
     float _minV{}, _maxV{}, _coefficient{}, _offset{};
     float _calib_zero_diff{};
     config_t _cfg{};
+    bool _via_pbhub{};
 };
 
 /*!
