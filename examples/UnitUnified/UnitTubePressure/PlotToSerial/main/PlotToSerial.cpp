@@ -22,13 +22,13 @@ bool has_display{};
 LGFX_Sprite sprite;
 
 // Layout (calculated in setup)
-int32_t sw{}, sh{};            // sprite width, height
-int32_t sprite_y{};            // sprite Y offset on lcd
-int32_t bar_y{}, bar_h{};     // bar area within sprite
-int32_t val_y{}, sub_y{};     // text areas within sprite
-int32_t zero_x{};             // 0 kPa marker position
-bool small_display{};          // true if sw < 200
-const lgfx::IFont* font{};    // font selection
+int32_t sw{}, sh{};         // sprite width, height
+int32_t sprite_y{};         // sprite Y offset on lcd
+int32_t bar_y{}, bar_h{};   // bar area within sprite
+int32_t val_y{}, sub_y{};   // text areas within sprite
+int32_t zero_x{};           // 0 kPa marker position
+bool small_display{};       // true if sw < 200
+const lgfx::IFont* font{};  // font selection
 
 // Pressure range: -100 ~ 200 kPa
 constexpr float P_MIN{-100.f};
@@ -71,11 +71,11 @@ void init_display()
     int32_t title_h = font_h + 2;
     sprite_y        = title_h;
 
-    bar_y            = 2;                                  // within sprite
-    bar_h            = small_display ? sh / 5 : sh / 4;
-    int32_t scale_y  = bar_y + bar_h + 2;                 // scale labels below bar
-    val_y            = scale_y + font_h + 2;              // pressure value below scale
-    sub_y            = val_y + font_h + 2;                // voltage/raw
+    bar_y           = 2;  // within sprite
+    bar_h           = small_display ? sh / 5 : sh / 4;
+    int32_t scale_y = bar_y + bar_h + 2;     // scale labels below bar
+    val_y           = scale_y + font_h + 2;  // pressure value below scale
+    sub_y           = val_y + font_h + 2;    // voltage/raw
 
     int32_t sprite_h = sub_y + font_h + 2;
 

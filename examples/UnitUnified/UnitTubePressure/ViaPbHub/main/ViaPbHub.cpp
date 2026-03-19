@@ -77,11 +77,11 @@ void init_display()
     int32_t title_h = font_h + 2;
     sprite_y        = title_h;
 
-    bar_y            = 2;
-    bar_h            = small_display ? sh / 5 : sh / 4;
-    int32_t scale_y  = bar_y + bar_h + 2;
-    val_y            = scale_y + font_h + 2;
-    sub_y            = val_y + font_h + 2;
+    bar_y           = 2;
+    bar_h           = small_display ? sh / 5 : sh / 4;
+    int32_t scale_y = bar_y + bar_h + 2;
+    val_y           = scale_y + font_h + 2;
+    sub_y           = val_y + font_h + 2;
 
     int32_t sprite_h = sub_y + font_h + 2;
 
