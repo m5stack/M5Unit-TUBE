@@ -37,7 +37,7 @@ bool UnitMCP_H10::begin()
 
     // Detect PbHub in parent chain
     static constexpr types::uid_t pbhub_uid{"UnitPbHub"_mmh3};
-    auto p = parent();
+    auto p     = parent();
     _via_pbhub = (p && p->identifier() == pbhub_uid);
 
     if (_cfg.calib_vzero != 0.0f) {
