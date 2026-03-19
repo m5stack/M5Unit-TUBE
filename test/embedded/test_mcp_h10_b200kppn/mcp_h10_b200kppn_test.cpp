@@ -90,7 +90,7 @@ TEST_F(TestMCP_H10_B200KPPN, Config)
     // Stop and reconfigure
     EXPECT_TRUE(unit->stopPeriodicMeasurement());
 
-    auto cfg          = unit->config();
+    auto cfg           = unit->config();
     cfg.start_periodic = false;
     cfg.interval_ms    = 200;
     cfg.calib_vzero    = 1.15f;
