@@ -27,15 +27,17 @@ namespace mcp_h10 {
   @brief Measurement data group
  */
 struct Data {
-    uint16_t raw{};   // ADC reading in millivolts
-    float voltage{};  // Voltage after clamp and calibration
+    uint16_t raw{};   //!< ADC reading (millivolts via GPIO, raw count via PbHub)
+    float voltage{};  //!< Voltage after clamp and calibration
 
+    //! @brief Calculate pressure from voltage using linear calibration (P = k * V + b)
     inline float pressure() const
     {
         return voltage * k + b;
     }
 
-    float k{}, b{};
+    float k{};  //!< Calibration coefficient (K)
+    float b{};  //!< Calibration offset (B)
 };
 
 }  // namespace mcp_h10
@@ -99,7 +101,11 @@ public:
     }
     virtual ~UnitMCP_H10() = default;
 
+    //! @brief Begin unit, applying config_t settings
+    //! @return True if successful
     virtual bool begin() override;
+    //! @brief Update periodic measurement
+    //! @param force Force read regardless of interval
     virtual void update(const bool force = false) override;
 
     /*!
@@ -193,7 +199,8 @@ public:
     ///@{
     /*!
       @brief Measurement single shot
-      @param[out] data Measured data
+      @param[out] d Measured data
+      @return True if successful
       @warning During periodic detection runs, an error is returned
     */
     bool measureSingleshot(mcp_h10::Data& d);
@@ -201,6 +208,7 @@ public:
 
     ///@name Calibration (Software)
     ///@{
+    //! @brief Returns true if calibration is set
     inline bool isCalibrated() const
     {
         return _calib_zero_diff != 0.0f;
@@ -218,7 +226,7 @@ public:
     inline void clearCalibration()
     {
         _calib_zero_diff = 0.0f;
-    };
+    }
     ///@}
 
 protected:
@@ -253,9 +261,6 @@ public:
     virtual ~UnitMCP_H10_B200KPPN() = default;
 };
 
-/*!
-
- */
 }  // namespace unit
 }  // namespace m5
 #endif
