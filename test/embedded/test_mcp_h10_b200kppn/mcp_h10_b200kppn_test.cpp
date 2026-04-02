@@ -78,6 +78,7 @@ TEST_F(TestMCP_H10_B200KPPN, Calibration)
     // The calibration offset is 1.2 - 1.1 = 0.1V, so pressure diff = 100 * 0.1 = 10 kPa
     // Allow some tolerance for ADC noise between two reads
     M5_LOGI("Calibrated: %.2f, Uncalibrated: %.2f", calibrated_pressure, uncalibrated_pressure);
+    EXPECT_NE(calibrated_pressure, uncalibrated_pressure);
 }
 
 TEST_F(TestMCP_H10_B200KPPN, Config)
