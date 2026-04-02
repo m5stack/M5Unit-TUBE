@@ -11,14 +11,13 @@ on:
     branches:
       - '*'
     paths:
-      - '*'
       - '**.ino'
       - '**.cpp'
       - '**.hpp'
       - '**.h'
       - '**.c'
       - '**.inl'
-      - '**clang-format-check.yml'
+      - '.github/workflows/clang-format-check.yml'
       - '**.clang-format'
   pull_request:
     paths:
@@ -28,9 +27,17 @@ on:
       - '**.h'
       - '**.c'
       - '**.inl'
-      - '**clang-format-check.yml'
+      - '.github/workflows/clang-format-check.yml'
       - '**.clang-format'
   workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   formatting-check:
