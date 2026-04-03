@@ -5,7 +5,7 @@
  */
 /*!
   @file unit_MCP_H10.cpp
-  @brief MCP-H10 Failiy unit for M5UnitUnified
+  @brief MCP-H10 Family unit for M5UnitUnified
  */
 
 #include "unit_MCP_H10.hpp"
@@ -34,6 +34,11 @@ bool UnitMCP_H10::begin()
             return false;
         }
     }
+
+    // Detect PbHub in parent chain
+    static constexpr types::uid_t pbhub_uid{"UnitPbHub"_mmh3};
+    auto p     = parent();
+    _via_pbhub = (p && p->identifier() == pbhub_uid);
 
     if (_cfg.calib_vzero != 0.0f) {
         setCalibration(_cfg.calib_vzero);
@@ -85,23 +90,44 @@ bool UnitMCP_H10::measureSingleshot(Data& d)
 }
 
 //
-bool UnitMCP_H10::read_measurement(Data& d)
+bool UnitMCP_H10::read_voltage_millivolts(float& voltage, uint16_t& raw)
 {
-    uint16_t raw{};
-    constexpr float M5_VREF{3.6f};
-
-    if (readAnalogRX(raw)) {
-        float v = raw * M5_VREF / 4095.f;
-        v -= _calib_zero_diff;
-        v = std::fmin(maximumVoltage(), std::fmax(minimumVoltage(), v));
-
-        d.raw     = raw;
-        d.voltage = v;
-        d.k       = coefficient();
-        d.b       = offset();
+    uint32_t mv{};
+    if (readAnalogMilliVoltsRX(mv)) {
+        raw     = static_cast<uint16_t>(mv);
+        voltage = mv / 1000.f;
         return true;
     }
     return false;
+}
+
+bool UnitMCP_H10::read_voltage_via_pbhub(float& voltage, uint16_t& raw)
+{
+    constexpr float M5_VREF{3.6f};
+    if (readAnalogRX(raw)) {
+        voltage = raw * M5_VREF / 4095.f;
+        return true;
+    }
+    return false;
+}
+
+bool UnitMCP_H10::read_measurement(Data& d)
+{
+    float v{};
+    uint16_t raw{};
+
+    if (!(_via_pbhub ? read_voltage_via_pbhub(v, raw) : read_voltage_millivolts(v, raw))) {
+        return false;
+    }
+
+    v = std::fmin(maximumVoltage(), std::fmax(minimumVoltage(), v));
+    v -= _calib_zero_diff;
+
+    d.raw     = raw;
+    d.voltage = v;
+    d.k       = coefficient();
+    d.b       = offset();
+    return true;
 }
 
 // class UnitMCP_H10_B200KPPN

@@ -26,7 +26,7 @@ namespace m5 {
   @brief Unit-related namespace
  */
 namespace unit {
-//! @brief Alias for UnitTunePressure
+//! @brief Alias for UnitTubePressure
 using UnitTubePressure = m5::unit::UnitMCP_H10_B200KPPN;
 
 }  // namespace unit

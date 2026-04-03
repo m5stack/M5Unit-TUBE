@@ -21,7 +21,7 @@ See also examples using conventional methods here.
 
 ## License
 
-- [M5Unit-TUBE- MIT](LICENSE)
+- [M5Unit-TUBE - MIT](LICENSE)
 
 
 ## Support via [PbHub](https://docs.m5stack.com/en/unit/pbhub_1.1)

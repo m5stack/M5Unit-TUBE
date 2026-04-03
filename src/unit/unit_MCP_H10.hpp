@@ -5,7 +5,7 @@
  */
 /*!
   @file unit_MCP_H10.hpp
-  @brief MCP-H10 Failiy unit for M5UnitUnified
+  @brief MCP-H10 Family unit for M5UnitUnified
  */
 #ifndef M5_UNIT_TUBE_UNIT_MCP_H10_HPP
 #define M5_UNIT_TUBE_UNIT_MCP_H10_HPP
@@ -27,15 +27,17 @@ namespace mcp_h10 {
   @brief Measurement data group
  */
 struct Data {
-    uint16_t raw{};   // Raw data
-    float voltage{};  // Calculated voltage
+    uint16_t raw{};   //!< ADC reading (millivolts via GPIO, raw count via PbHub)
+    float voltage{};  //!< Voltage after clamp and calibration
 
+    //! @brief Calculate pressure from voltage using linear calibration (P = k * V + b)
     inline float pressure() const
     {
         return voltage * k + b;
     }
 
-    float k{}, b{};
+    float k{};  //!< Calibration coefficient (K)
+    float b{};  //!< Calibration offset (B)
 };
 
 }  // namespace mcp_h10
@@ -84,7 +86,7 @@ public:
     /*!
       @brief Constructor
       @param minV OL
-      @param minV OH
+      @param maxV OH
       @param coefficient k
       @param offset B
      */
@@ -99,7 +101,11 @@ public:
     }
     virtual ~UnitMCP_H10() = default;
 
+    //! @brief Begin unit, applying config_t settings
+    //! @return True if successful
     virtual bool begin() override;
+    //! @brief Update periodic measurement
+    //! @param force Force read regardless of interval
     virtual void update(const bool force = false) override;
 
     /*!
@@ -117,12 +123,12 @@ public:
 
     ///@name Settings for begin
     ///@{
-    /*! @brief Gets the configration */
+    /*! @brief Gets the configuration */
     inline config_t config()
     {
         return _cfg;
     }
-    //! @brief Set the configration
+    //! @brief Set the configuration
     inline void config(const config_t& cfg)
     {
         _cfg = cfg;
@@ -193,7 +199,8 @@ public:
     ///@{
     /*!
       @brief Measurement single shot
-      @param[out] data Measuerd data
+      @param[out] d Measured data
+      @return True if successful
       @warning During periodic detection runs, an error is returned
     */
     bool measureSingleshot(mcp_h10::Data& d);
@@ -201,6 +208,7 @@ public:
 
     ///@name Calibration (Software)
     ///@{
+    //! @brief Returns true if calibration is set
     inline bool isCalibrated() const
     {
         return _calib_zero_diff != 0.0f;
@@ -218,11 +226,13 @@ public:
     inline void clearCalibration()
     {
         _calib_zero_diff = 0.0f;
-    };
+    }
     ///@}
 
 protected:
     bool read_measurement(mcp_h10::Data& d);
+    bool read_voltage_millivolts(float& voltage, uint16_t& raw);
+    bool read_voltage_via_pbhub(float& voltage, uint16_t& raw);
     bool start_periodic_measurement(const uint32_t interval);
     bool stop_periodic_measurement();
 
@@ -234,6 +244,7 @@ private:
     float _minV{}, _maxV{}, _coefficient{}, _offset{};
     float _calib_zero_diff{};
     config_t _cfg{};
+    bool _via_pbhub{};
 };
 
 /*!
@@ -250,9 +261,6 @@ public:
     virtual ~UnitMCP_H10_B200KPPN() = default;
 };
 
-/*!
-
- */
 }  // namespace unit
 }  // namespace m5
 #endif
