@@ -1,4 +1,5 @@
 var searchData=
 [
-  ['voltagerange_0',['voltageRange',['../classm5_1_1unit_1_1_unit_m_c_p___h10.html#add6e0634546f21bd4c26e60ceaa5cdf6',1,'m5::unit::UnitMCP_H10']]]
+  ['unitmcp_5fh10_0',['UnitMCP_H10',['../classm5_1_1unit_1_1_unit_m_c_p___h10.html#a444bd2723579d9e9d25c3092a4714a5a',1,'m5::unit::UnitMCP_H10']]],
+  ['update_1',['update',['../classm5_1_1unit_1_1_unit_m_c_p___h10.html#a6b5fd2b59c848bb2767314addcb5c939',1,'m5::unit::UnitMCP_H10']]]
 ];

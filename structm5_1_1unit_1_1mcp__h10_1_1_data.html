@@ -27,7 +27,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">M5Unit-TUBE<span id="projectnumber">&#160;0.0.1 git rev:12e5f29</span>
+   <div id="projectname">M5Unit-TUBE<span id="projectnumber">&#160;0.0.2 git rev:56c1d96</span>
    </div>
   </td>
  </tr>
@@ -113,21 +113,26 @@ $(function(){initNavTree('structm5_1_1unit_1_1mcp__h10_1_1_data.html',''); initR
 Public Member Functions</h2></td></tr>
 <tr class="memitem:aea021d83e40ae0658fea626c1957e1c7" id="r_aea021d83e40ae0658fea626c1957e1c7"><td class="memItemLeft" align="right" valign="top"><a id="aea021d83e40ae0658fea626c1957e1c7" name="aea021d83e40ae0658fea626c1957e1c7"></a>
 float&#160;</td><td class="memItemRight" valign="bottom"><b>pressure</b> () const</td></tr>
+<tr class="memdesc:aea021d83e40ae0658fea626c1957e1c7"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calculate pressure from voltage using linear calibration (P = k * V + b) <br /></td></tr>
 <tr class="separator:aea021d83e40ae0658fea626c1957e1c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a14efaffd4488975f35ff1e330b184311" id="r_a14efaffd4488975f35ff1e330b184311"><td class="memItemLeft" align="right" valign="top"><a id="a14efaffd4488975f35ff1e330b184311" name="a14efaffd4488975f35ff1e330b184311"></a>
 uint16_t&#160;</td><td class="memItemRight" valign="bottom"><b>raw</b> {}</td></tr>
+<tr class="memdesc:a14efaffd4488975f35ff1e330b184311"><td class="mdescLeft">&#160;</td><td class="mdescRight">ADC reading (millivolts via GPIO, raw count via PbHub) <br /></td></tr>
 <tr class="separator:a14efaffd4488975f35ff1e330b184311"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a1d13f6acfde83939302dc7dfd88726d9" id="r_a1d13f6acfde83939302dc7dfd88726d9"><td class="memItemLeft" align="right" valign="top"><a id="a1d13f6acfde83939302dc7dfd88726d9" name="a1d13f6acfde83939302dc7dfd88726d9"></a>
 float&#160;</td><td class="memItemRight" valign="bottom"><b>voltage</b> {}</td></tr>
+<tr class="memdesc:a1d13f6acfde83939302dc7dfd88726d9"><td class="mdescLeft">&#160;</td><td class="mdescRight">Voltage after clamp and calibration. <br /></td></tr>
 <tr class="separator:a1d13f6acfde83939302dc7dfd88726d9"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a40e38f9baa6d2d4d914384440823b948" id="r_a40e38f9baa6d2d4d914384440823b948"><td class="memItemLeft" align="right" valign="top"><a id="a40e38f9baa6d2d4d914384440823b948" name="a40e38f9baa6d2d4d914384440823b948"></a>
 float&#160;</td><td class="memItemRight" valign="bottom"><b>k</b> {}</td></tr>
+<tr class="memdesc:a40e38f9baa6d2d4d914384440823b948"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calibration coefficient (K) <br /></td></tr>
 <tr class="separator:a40e38f9baa6d2d4d914384440823b948"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a87697409fa4a12305a6147feaad2ab75" id="r_a87697409fa4a12305a6147feaad2ab75"><td class="memItemLeft" align="right" valign="top"><a id="a87697409fa4a12305a6147feaad2ab75" name="a87697409fa4a12305a6147feaad2ab75"></a>
 float&#160;</td><td class="memItemRight" valign="bottom"><b>b</b> {}</td></tr>
+<tr class="memdesc:a87697409fa4a12305a6147feaad2ab75"><td class="mdescLeft">&#160;</td><td class="mdescRight">Calibration offset (B) <br /></td></tr>
 <tr class="separator:a87697409fa4a12305a6147feaad2ab75"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>

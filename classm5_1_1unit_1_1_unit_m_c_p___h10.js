@@ -2,6 +2,7 @@ var classm5_1_1unit_1_1_unit_m_c_p___h10 =
 [
     [ "config_t", "structm5_1_1unit_1_1_unit_m_c_p___h10_1_1config__t.html", "structm5_1_1unit_1_1_unit_m_c_p___h10_1_1config__t" ],
     [ "UnitMCP_H10", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#a444bd2723579d9e9d25c3092a4714a5a", null ],
+    [ "begin", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#ab1c564c245b4a97ae79d29381b6ee5fd", null ],
     [ "clearCalibration", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#ad0fdf8f291649037be109f41eeeb1df4", null ],
     [ "coefficient", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#af8d73ec5cf7f4112d63816ce9b87d685", null ],
     [ "config", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#a713e8e39815b81af8d495a234bad6f3c", null ],
@@ -15,5 +16,6 @@ var classm5_1_1unit_1_1_unit_m_c_p___h10 =
     [ "setCalibration", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#a993ea9a4c7eeda31a4679d825830502f", null ],
     [ "startPeriodicMeasurement", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#acca1c0030fee218e43e794a647a93e63", null ],
     [ "stopPeriodicMeasurement", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#a2fc943c40096093a58a961875e3610a5", null ],
+    [ "update", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#a6b5fd2b59c848bb2767314addcb5c939", null ],
     [ "voltageRange", "classm5_1_1unit_1_1_unit_m_c_p___h10.html#add6e0634546f21bd4c26e60ceaa5cdf6", null ]
 ];
