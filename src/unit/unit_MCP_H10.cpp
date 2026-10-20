@@ -107,8 +107,9 @@ bool UnitMCP_H10::read_voltage_millivolts(float& voltage, uint16_t& raw)
 
 bool UnitMCP_H10::read_voltage_via_pbhub(float& voltage, uint16_t& raw)
 {
-    // PbHub ADC: 12-bit (0-4095), 3.6 V full scale (M5Stack docs)
-    constexpr float M5_VREF{3.6f};
+    // PbHub v1.1 ADC: 12-bit (0-4095) with 3.3 V reference
+    // (measured: 1.099 V on the signal line, read as 1.107 V with 3.3 V and as 1.208 V with 3.6 V)
+    constexpr float M5_VREF{3.3f};
     if (readAnalogRX(raw)) {
         voltage = raw * M5_VREF / 4095.f;
         return true;
