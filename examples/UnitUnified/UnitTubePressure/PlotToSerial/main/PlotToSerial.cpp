@@ -40,7 +40,7 @@ constexpr float P_RANGE{P_MAX - P_MIN};
 enum : uint8_t {
     C_BG   = 0,  // background + bar background
     C_BAR  = 1,  // pressure bar
-    C_MARK = 2,  // zero marker, border, sub text
+    C_MARK = 2,  // border, scale labels, sub text
     C_TEXT = 3,  // labels, value text
 };
 
@@ -91,7 +91,7 @@ void init_display()
     // Setup palette
     sprite.setPaletteColor(C_BG, TFT_BLACK);
     sprite.setPaletteColor(C_BAR, TFT_BLUE);
-    sprite.setPaletteColor(C_MARK, 0x7BCFu);  // grey
+    sprite.setPaletteColor(C_MARK, TFT_DARKGREY);
     sprite.setPaletteColor(C_TEXT, TFT_WHITE);
 
     sprite.setFont(font);
@@ -132,7 +132,7 @@ void render_pressure(const float pressure, const float voltage, const uint16_t r
 
     // Scale labels below bar
     int32_t scale_y = bar_y + bar_h + 2;
-    sprite.setTextColor((uint8_t)C_MARK);
+    sprite.setTextColor(static_cast<uint8_t>(C_MARK));
     sprite.setTextDatum(textdatum_t::top_left);
     sprite.drawString("-100", 2, scale_y);
     sprite.setTextDatum(textdatum_t::top_center);
@@ -142,13 +142,13 @@ void render_pressure(const float pressure, const float voltage, const uint16_t r
 
     // Pressure value
     auto s = m5::utility::formatString("%.1f kPa", pressure);
-    sprite.setTextColor((uint8_t)C_TEXT);
+    sprite.setTextColor(static_cast<uint8_t>(C_TEXT));
     sprite.setTextDatum(textdatum_t::top_left);
     sprite.drawString(s.c_str(), 2, val_y);
 
     // Voltage and raw (right-aligned on same line for large, next line for small)
     auto s2 = m5::utility::formatString("%.3fV R:%u", voltage, raw);
-    sprite.setTextColor((uint8_t)C_MARK);
+    sprite.setTextColor(static_cast<uint8_t>(C_MARK));
     if (small_display) {
         sprite.setTextDatum(textdatum_t::top_left);
         sprite.drawString(s2.c_str(), 2, sub_y);
@@ -176,7 +176,7 @@ void setup()
         m5::unit::wiring::failStop();
     }
 
-    M5_LOGI("M5UnitUnified has been begun");
+    M5_LOGI("M5UnitUnified initialized");
     M5_LOGI("%s", Units.debugInfo().c_str());
 
     render_pressure(0.f, 0.f, 0);
@@ -203,6 +203,8 @@ void loop()
 
         if (single) {
             unit.stopPeriodicMeasurement();
+            // Clear the previous calibration so that the new zero point is taken from the uncalibrated voltage
+            unit.clearCalibration();
             Data d{};
             if (unit.measureSingleshot(d)) {
                 M5.Log.printf("Single: Pressure:%.2f V:%f Raw:%u\n", d.pressure(), d.voltage, d.raw);
