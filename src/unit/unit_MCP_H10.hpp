@@ -11,6 +11,7 @@
 #define M5_UNIT_TUBE_UNIT_MCP_H10_HPP
 
 #include <M5UnitComponent.hpp>
+#include <m5_utility/container/circular_buffer.hpp>
 #include <limits>  // NaN
 
 namespace m5 {
