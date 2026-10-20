@@ -10,6 +10,7 @@
 
 #include "unit_MCP_H10.hpp"
 
+#include <cassert>
 #include <cmath>
 
 #include <M5Utility.hpp>
@@ -54,7 +55,7 @@ void UnitMCP_H10::update(const bool force)
     _updated = false;
     if (inPeriodic()) {
         elapsed_time_t at{m5::utility::millis()};
-        if (force || !_latest || at >= _latest + _interval) {
+        if (force || !_latest || m5::utility::hasElapsed(_latest, _interval, at)) {
             Data d{};
             _updated = read_measurement(d);
             if (_updated) {
@@ -106,6 +107,7 @@ bool UnitMCP_H10::read_voltage_millivolts(float& voltage, uint16_t& raw)
 
 bool UnitMCP_H10::read_voltage_via_pbhub(float& voltage, uint16_t& raw)
 {
+    // PbHub ADC: 12-bit (0-4095), 3.6 V full scale (M5Stack docs)
     constexpr float M5_VREF{3.6f};
     if (readAnalogRX(raw)) {
         voltage = raw * M5_VREF / 4095.f;
