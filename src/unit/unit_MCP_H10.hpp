@@ -31,7 +31,7 @@ namespace mcp_h10 {
  */
 struct Data {
     uint16_t raw{};   //!< ADC reading (millivolts via GPIO, raw count via PbHub)
-    float voltage{};  //!< Voltage after clamp and calibration
+    float voltage{};  //!< Voltage after clamp and calibration (can be outside OL-OH by the calibration offset)
 
     //! @brief Calculate pressure (kPa) from voltage using linear calibration (P = k * V + B)
     inline float pressure() const
@@ -90,7 +90,7 @@ public:
       @brief Constructor
       @param minV Minimum output voltage OL (V)
       @param maxV Maximum output voltage OH (V)
-      @param coefficient Coefficient k (kPa/V)
+      @param coefficient Coefficient k (kPa/V), must not be 0
       @param offset Offset B (kPa)
      */
     explicit UnitMCP_H10(const float minV, const float maxV, const float coefficient, const float offset)
