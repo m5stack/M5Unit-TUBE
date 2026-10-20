@@ -9,6 +9,9 @@
  */
 
 #include "unit_MCP_H10.hpp"
+
+#include <cmath>
+
 #include <M5Utility.hpp>
 
 using namespace m5::utility::mmh3;
