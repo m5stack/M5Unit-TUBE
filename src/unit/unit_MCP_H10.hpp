@@ -10,8 +10,11 @@
 #ifndef M5_UNIT_TUBE_UNIT_MCP_H10_HPP
 #define M5_UNIT_TUBE_UNIT_MCP_H10_HPP
 
-#include <M5UnitComponent.hpp>
 #include <limits>  // NaN
+#include <memory>
+
+#include <M5UnitComponent.hpp>
+#include <m5_utility/container/circular_buffer.hpp>
 
 namespace m5 {
 namespace unit {
@@ -28,9 +31,9 @@ namespace mcp_h10 {
  */
 struct Data {
     uint16_t raw{};   //!< ADC reading (millivolts via GPIO, raw count via PbHub)
-    float voltage{};  //!< Voltage after clamp and calibration
+    float voltage{};  //!< Voltage after clamp and calibration (can be outside OL-OH by the calibration offset)
 
-    //! @brief Calculate pressure from voltage using linear calibration (P = k * V + b)
+    //! @brief Calculate pressure (kPa) from voltage using linear calibration (P = k * V + B)
     inline float pressure() const
     {
         return voltage * k + b;
@@ -45,7 +48,7 @@ struct Data {
 /*!
   @class m5::unit::UnitMCP_H10
   @brief MCP-H10 family unit base class
-  @note  MCP-H10 family spec
+  @note  MCP-H10 family spec (k = (Pr - Po) / (OH - OL), B = Po - k * OL)
 | Model             |   Po (kPa) |   Pr (kPa) |   OL (V) |   OH (V) |       k |         B | M5?|
 |-------------------|------------|------------|----------|----------|---------|-----------|---|
 | MCP-H10-A2KP5P    |        0   |        2.5 |     0.5  |     4.5  |   0.625 |   -0.3125 ||
@@ -55,10 +58,10 @@ struct Data {
 | MCP-H10-A10KPP    |        0   |       10   |     0.5  |     4.5  |   2.5   |   -1.25   ||
 | MCP-H10-A10KPPN   |     -10    |       10   |     0.5  |     4.5  |   5     |  -12.5    ||
 | MCP-H10-A40KPP    |        0   |       40   |     0.5  |     4.5  |  10     |   -5      ||
-| MCP-H10-A40KPPN   |     -40    |       40   |     0.5  |     4.5  |  20     |  -20      ||
+| MCP-H10-A40KPPN   |     -40    |       40   |     0.5  |     4.5  |  20     |  -50      ||
 | MCP-H10-A100KPP   |        0   |      100   |     0.5  |     4.5  |  25     |  -12.5    ||
-| MCP-H10-A100KPPN  |    -100    |      100   |     0.5  |     4.5  |  50     |  -25      ||
-| MCP-H10-A200KPP   |        0   |      200   |     0.5  |     4.5  |  50     |  -12.5    ||
+| MCP-H10-A100KPPN  |    -100    |      100   |     0.5  |     4.5  |  50     | -125      ||
+| MCP-H10-A200KPP   |        0   |      200   |     0.5  |     4.5  |  50     |  -25      ||
 | MCP-H10-A200KPPN  |    -100    |      200   |     0.5  |     4.5  |  75     | -137.5    ||
 | MCP-H10-A500KPP   |        0   |      500   |     0.5  |     4.5  | 125     |  -62.5    ||
 | MCP-H10-A1000KPP  |        0   |     1000   |     0.5  |     4.5  | 250     | -125      ||
@@ -68,7 +71,7 @@ struct Data {
 | MCP-H10-B05KPPN   |      -5    |        5   |     0.1  |     3.1  |   3.333 |   -5.333  ||
 | MCP-H10-B05KPP    |        0   |        5   |     0.1  |     3.1  |   1.667 |   -0.167  ||
 | MCP-H10-B10KPP    |        0   |       10   |     0.1  |     3.1  |   3.333 |   -0.333  ||
-| MCP-H10-B10KPPN   |     -10    |       10   |     0.1  |     3.1  |   6.667 |   -3.333  ||
+| MCP-H10-B10KPPN   |     -10    |       10   |     0.1  |     3.1  |   6.667 |  -10.667  ||
 | MCP-H10-B40KPP    |        0   |       40   |     0.1  |     3.1  |  13.333 |   -1.333  ||
 | MCP-H10-B40KPPN   |     -40    |       40   |     0.1  |     3.1  |  26.667 |  -42.667  ||
 | MCP-H10-B100KPP   |        0   |      100   |     0.1  |     3.1  |  33.333 |   -3.333  ||
@@ -85,10 +88,10 @@ class UnitMCP_H10 : public Component, public PeriodicMeasurementAdapter<UnitMCP_
 public:
     /*!
       @brief Constructor
-      @param minV OL
-      @param maxV OH
-      @param coefficient k
-      @param offset B
+      @param minV Minimum output voltage OL (V)
+      @param maxV Maximum output voltage OH (V)
+      @param coefficient Coefficient k (kPa/V), must not be 0
+      @param offset Offset B (kPa)
      */
     explicit UnitMCP_H10(const float minV, const float maxV, const float coefficient, const float offset)
         : Component(DEFAULT_ADDRESS),
@@ -117,14 +120,14 @@ public:
         bool start_periodic{true};
         //! Interval time if start on begin (ms)
         uint32_t interval_ms{100};
-        //! Calibration (Voltage value to be considered as pressure 0)
+        //! Voltage to treat as 0 kPa (0: no calibration)
         float calib_vzero{};
     };
 
     ///@name Settings for begin
     ///@{
     /*! @brief Gets the configuration */
-    inline config_t config()
+    inline config_t config() const
     {
         return _cfg;
     }
@@ -167,7 +170,7 @@ public:
 
     ///@name Measurement data by periodic
     ///@{
-    //! @brief Oldest measured pressure (kPA)
+    //! @brief Oldest measured pressure (kPa)
     inline float pressure() const
     {
         return !empty() ? oldest().pressure() : std::numeric_limits<float>::quiet_NaN();
@@ -201,14 +204,17 @@ public:
       @brief Measurement single shot
       @param[out] d Measured data
       @return True if successful
-      @warning During periodic detection runs, an error is returned
+      @warning During periodic measurement, an error is returned
     */
     bool measureSingleshot(mcp_h10::Data& d);
     ///@}
 
     ///@name Calibration (Software)
     ///@{
-    //! @brief Returns true if calibration is set
+    /*!
+      @brief Returns true if calibration is set
+      @note Returns false if the calibration voltage equals the ideal zero voltage (-B / k)
+    */
     inline bool isCalibrated() const
     {
         return _calib_zero_diff != 0.0f;
@@ -255,6 +261,7 @@ class UnitMCP_H10_B200KPPN : public UnitMCP_H10 {
     M5_UNIT_COMPONENT_HPP_BUILDER(UnitMCP_H10_B200KPPN, 0x00 /* No I2C */);
 
 public:
+    //! @brief Constructor (OL 0.1 V, OH 3.1 V, k 100, B -110)
     explicit UnitMCP_H10_B200KPPN() : UnitMCP_H10(0.1f, 3.1f, 100.f, -110.f)
     {
     }

@@ -11,8 +11,8 @@
 #include <M5Unified.h>
 #include <M5UnitUnified.h>
 #include <M5UnitUnifiedTUBE.h>
-#include <M5UnitUnifiedHUB.h>  // UnitPbHub
-#include <M5HAL.hpp>
+#include <M5UnitUnifiedHUB.h>                 // UnitPbHub
+#include <wiring/m5_unit_unified_wiring.hpp>  // Board-aware connection helpers (include last)
 
 using namespace m5::unit::mcp_h10;
 
@@ -93,7 +93,7 @@ void init_display()
 
     sprite.setPaletteColor(C_BG, TFT_BLACK);
     sprite.setPaletteColor(C_BAR, TFT_YELLOW);
-    sprite.setPaletteColor(C_MARK, 0x7BCFu);
+    sprite.setPaletteColor(C_MARK, TFT_DARKGREY);
     sprite.setPaletteColor(C_TEXT, TFT_WHITE);
 
     sprite.setFont(font);
@@ -128,7 +128,7 @@ void render_pressure(const float pressure, const float voltage, const uint16_t r
     sprite.drawFastVLine(zero_x, bar_y, bar_h, C_TEXT);
 
     int32_t scale_y = bar_y + bar_h + 2;
-    sprite.setTextColor((uint8_t)C_MARK);
+    sprite.setTextColor(static_cast<uint8_t>(C_MARK));
     sprite.setTextDatum(textdatum_t::top_left);
     sprite.drawString("-100", 2, scale_y);
     sprite.setTextDatum(textdatum_t::top_center);
@@ -137,12 +137,12 @@ void render_pressure(const float pressure, const float voltage, const uint16_t r
     sprite.drawString("200", sw - 2, scale_y);
 
     auto s = m5::utility::formatString("%.1f kPa", pressure);
-    sprite.setTextColor((uint8_t)C_TEXT);
+    sprite.setTextColor(static_cast<uint8_t>(C_TEXT));
     sprite.setTextDatum(textdatum_t::top_left);
     sprite.drawString(s.c_str(), 2, val_y);
 
     auto s2 = m5::utility::formatString("%.3fV R:%u", voltage, raw);
-    sprite.setTextColor((uint8_t)C_MARK);
+    sprite.setTextColor(static_cast<uint8_t>(C_MARK));
     if (small_display) {
         sprite.setTextDatum(textdatum_t::top_left);
         sprite.drawString(s2.c_str(), 2, sub_y);
@@ -163,52 +163,18 @@ void setup()
 
     init_display();
 
-    auto board = M5.getBoard();
-
-    // NessoN1: Arduino Wire (I2C_NUM_0) cannot be used for GROVE port.
-    //   Wire is used by M5Unified In_I2C for internal devices (IOExpander etc.).
-    //   Wire1 exists but is reserved for HatPort — cannot be used for GROVE.
-    //   Reconfiguring Wire to GROVE pins breaks In_I2C, causing ESP_ERR_INVALID_STATE in M5.update().
-    //   Solution: Use SoftwareI2C via M5HAL (bit-banging) for the GROVE port.
-    // NanoC6: Wire.begin() on GROVE pins conflicts with m5::I2C_Class registered by Ex_I2C.setPort()
-    //   on the same I2C_NUM_0, causing sporadic NACK errors.
-    //   Solution: Use M5.Ex_I2C (m5::I2C_Class) directly instead of Arduino Wire.
-    bool unit_ready{};
-    if (board == m5::board_t::board_ArduinoNessoN1) {
-        // NessoN1: GROVE is on port_b (GPIO 5/4), not port_a (which maps to Wire pins 8/10)
-        auto pin_num_sda = M5.getPin(m5::pin_name_t::port_b_out);
-        auto pin_num_scl = M5.getPin(m5::pin_name_t::port_b_in);
-        M5_LOGI("getPin(M5HAL): SDA:%u SCL:%u", pin_num_sda, pin_num_scl);
-        m5::hal::bus::I2CBusConfig i2c_cfg;
-        i2c_cfg.pin_sda = m5::hal::gpio::getPin(pin_num_sda);
-        i2c_cfg.pin_scl = m5::hal::gpio::getPin(pin_num_scl);
-        auto i2c_bus    = m5::hal::bus::i2c::getBus(i2c_cfg);
-        M5_LOGI("Bus:%d", i2c_bus.has_value());
-        unit_ready =
-            hub.add(unit, PBHUB_CHANNEL) && Units.add(hub, i2c_bus ? i2c_bus.value() : nullptr) && Units.begin();
-    } else if (board == m5::board_t::board_M5NanoC6) {
-        // NanoC6: Use M5.Ex_I2C (m5::I2C_Class, not Arduino Wire)
-        M5_LOGI("Using M5.Ex_I2C");
-        unit_ready = hub.add(unit, PBHUB_CHANNEL) && Units.add(hub, M5.Ex_I2C) && Units.begin();
-    } else {
-        auto pin_num_sda = M5.getPin(m5::pin_name_t::port_a_sda);
-        auto pin_num_scl = M5.getPin(m5::pin_name_t::port_a_scl);
-        M5_LOGI("getPin: SDA:%u SCL:%u", pin_num_sda, pin_num_scl);
-        Wire.end();
-        Wire.begin(pin_num_sda, pin_num_scl, 400000U);
-        unit_ready = hub.add(unit, PBHUB_CHANNEL) && Units.add(hub, Wire) && Units.begin();
+    if (!hub.add(unit, PBHUB_CHANNEL)) {  // PbHub ch:3 -> UnitTubePressure
+        M5_LOGE("Failed to add children");
+        m5::unit::wiring::failStop();
     }
-    if (!unit_ready) {
+    // Board-aware I2C for the PbHub: NessoN1 -> SoftwareI2C on GROVE, NanoC6/NanoH2 -> M5.Ex_I2C, others -> Wire.
+    // The unit is reached through the hub (added above), so only the hub is added here.
+    if (!m5::unit::wiring::addI2C(Units, hub) || !Units.begin()) {
         M5_LOGE("Failed to begin");
-        if (has_display) {
-            lcd.fillScreen(TFT_RED);
-        }
-        while (true) {
-            m5::utility::delay(10000);
-        }
+        m5::unit::wiring::failStop();
     }
 
-    M5_LOGI("M5UnitUnified has been begun");
+    M5_LOGI("M5UnitUnified initialized");
     M5_LOGI("%s", Units.debugInfo().c_str());
 
     render_pressure(0.f, 0.f, 0);
@@ -235,6 +201,8 @@ void loop()
 
         if (single) {
             unit.stopPeriodicMeasurement();
+            // Clear the previous calibration so that the new zero point is taken from the uncalibrated voltage
+            unit.clearCalibration();
             Data d{};
             if (unit.measureSingleshot(d)) {
                 M5.Log.printf("Single: Pressure:%.2f V:%f Raw:%u\n", d.pressure(), d.voltage, d.raw);
@@ -246,3 +214,36 @@ void loop()
         }
     }
 }
+
+#if !defined(ARDUINO)
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <esp_timer.h>
+
+#if CONFIG_FREERTOS_UNICORE
+// Single-core SoCs: run loop() back-to-back, but every ~2 s yield a 5 ms slice so the IDLE task
+// runs and feeds the task watchdog (default 5 s).
+static inline void feedIdleTaskPeriodically(void)
+{
+    constexpr uint32_t FEED_INTERVAL_MS{2000};
+    constexpr TickType_t FEED_SLEEP_TICKS{pdMS_TO_TICKS(5)};
+    static uint32_t s_last_feed_ms{};
+    const uint32_t now_ms{static_cast<uint32_t>(esp_timer_get_time() / 1000)};
+    if (now_ms - s_last_feed_ms >= FEED_INTERVAL_MS) {
+        s_last_feed_ms = now_ms;
+        vTaskDelay(FEED_SLEEP_TICKS);
+    }
+}
+#endif
+
+extern "C" void app_main(void)
+{
+    setup();
+    for (;;) {
+#if CONFIG_FREERTOS_UNICORE
+        feedIdleTaskPeriodically();
+#endif
+        loop();
+    }
+}
+#endif

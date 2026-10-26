@@ -7,7 +7,6 @@
   UnitTest for UnitTube
 */
 #include <gtest/gtest.h>
-#include <Wire.h>
 #include <M5Unified.h>
 #include <M5UnitUnified.hpp>
 #include <googletest/test_template.hpp>
@@ -18,9 +17,23 @@
 using namespace m5::unit::googletest;
 using namespace m5::unit;
 using namespace m5::unit::mcp_h10;
-using namespace m5::unit::types;
 
 constexpr uint32_t STORED_SIZE{8};
+constexpr uint32_t AVERAGE_COUNT{8};
+
+namespace {
+// Average pressure of several singleshot reads, to suppress the ADC noise between single reads
+float average_pressure(UnitMCP_H10_B200KPPN& u)
+{
+    float sum{};
+    for (uint32_t i = 0; i < AVERAGE_COUNT; ++i) {
+        Data d{};
+        EXPECT_TRUE(u.measureSingleshot(d));
+        sum += d.pressure();
+    }
+    return sum / AVERAGE_COUNT;
+}
+}  // namespace
 
 class TestMCP_H10_B200KPPN : public GPIOComponentTestBase<UnitMCP_H10_B200KPPN> {
 protected:
@@ -60,25 +73,19 @@ TEST_F(TestMCP_H10_B200KPPN, Calibration)
 
     // Read with calibration applied
     EXPECT_TRUE(unit->stopPeriodicMeasurement());
-    Data d{};
-    EXPECT_TRUE(unit->measureSingleshot(d));
-    EXPECT_TRUE(std::isfinite(d.pressure()));
-    float calibrated_pressure = d.pressure();
+    const float calibrated_pressure = average_pressure(*unit);
 
     // Clear calibration
     unit->clearCalibration();
     EXPECT_FALSE(unit->isCalibrated());
 
     // Read without calibration
-    EXPECT_TRUE(unit->measureSingleshot(d));
-    EXPECT_TRUE(std::isfinite(d.pressure()));
-    float uncalibrated_pressure = d.pressure();
+    const float uncalibrated_pressure = average_pressure(*unit);
 
-    // Calibrated and uncalibrated should differ (unless voltage happens to be exactly ideal zero)
-    // The calibration offset is 1.2 - 1.1 = 0.1V, so pressure diff = 100 * 0.1 = 10 kPa
-    // Allow some tolerance for ADC noise between two reads
+    // The calibration offset is 1.2 - 1.1 = 0.1 V, so the calibrated pressure is 100 * 0.1 = 10 kPa lower
+    // Tolerance: ADC noise left after averaging (1 mV = 0.1 kPa)
     M5_LOGI("Calibrated: %.2f, Uncalibrated: %.2f", calibrated_pressure, uncalibrated_pressure);
-    EXPECT_NE(calibrated_pressure, uncalibrated_pressure);
+    EXPECT_NEAR(uncalibrated_pressure - calibrated_pressure, 10.0f, 2.0f);
 }
 
 TEST_F(TestMCP_H10_B200KPPN, Config)
@@ -88,9 +95,9 @@ TEST_F(TestMCP_H10_B200KPPN, Config)
     // Default config starts periodic measurement
     EXPECT_TRUE(unit->inPeriodic());
 
-    // Stop and reconfigure
     EXPECT_TRUE(unit->stopPeriodicMeasurement());
 
+    // config() only stores the settings for the next begin()
     auto cfg           = unit->config();
     cfg.start_periodic = false;
     cfg.interval_ms    = 200;
@@ -102,6 +109,59 @@ TEST_F(TestMCP_H10_B200KPPN, Config)
     EXPECT_FALSE(cfg2.start_periodic);
     EXPECT_EQ(cfg2.interval_ms, 200U);
     EXPECT_FLOAT_EQ(cfg2.calib_vzero, 1.15f);
+}
+
+// config_t is applied by begin(), so it is set in get_instance() before begin()
+class TestMCP_H10_B200KPPN_ConfigNoPeriodic : public GPIOComponentTestBase<UnitMCP_H10_B200KPPN> {
+protected:
+    virtual UnitMCP_H10_B200KPPN* get_instance() override
+    {
+        auto ptr         = new m5::unit::UnitMCP_H10_B200KPPN();
+        auto ccfg        = ptr->component_config();
+        ccfg.stored_size = STORED_SIZE;
+        ptr->component_config(ccfg);
+        auto cfg           = ptr->config();
+        cfg.start_periodic = false;
+        cfg.calib_vzero    = 1.15f;
+        ptr->config(cfg);
+        return ptr;
+    }
+};
+
+TEST_F(TestMCP_H10_B200KPPN_ConfigNoPeriodic, BeginAppliesConfig)
+{
+    SCOPED_TRACE(ustr);
+
+    EXPECT_FALSE(unit->inPeriodic());
+    EXPECT_TRUE(unit->isCalibrated());
+
+    Data d{};
+    EXPECT_TRUE(unit->measureSingleshot(d));
+}
+
+class TestMCP_H10_B200KPPN_ConfigPeriodic : public GPIOComponentTestBase<UnitMCP_H10_B200KPPN> {
+protected:
+    virtual UnitMCP_H10_B200KPPN* get_instance() override
+    {
+        auto ptr         = new m5::unit::UnitMCP_H10_B200KPPN();
+        auto ccfg        = ptr->component_config();
+        ccfg.stored_size = STORED_SIZE;
+        ptr->component_config(ccfg);
+        auto cfg           = ptr->config();
+        cfg.start_periodic = true;
+        cfg.interval_ms    = 200;
+        ptr->config(cfg);
+        return ptr;
+    }
+};
+
+TEST_F(TestMCP_H10_B200KPPN_ConfigPeriodic, BeginAppliesConfig)
+{
+    SCOPED_TRACE(ustr);
+
+    EXPECT_TRUE(unit->inPeriodic());
+    EXPECT_EQ(unit->interval(), 200U);
+    EXPECT_FALSE(unit->isCalibrated());
 }
 
 TEST_F(TestMCP_H10_B200KPPN, Periodic)
@@ -132,7 +192,10 @@ TEST_F(TestMCP_H10_B200KPPN, Periodic)
 
     uint32_t cnt{STORED_SIZE / 2};
     while (cnt-- && unit->available()) {
-        EXPECT_TRUE(std::isfinite(unit->pressure()));
+        EXPECT_GE(unit->oldest().voltage, unit->minimumVoltage());
+        EXPECT_LE(unit->oldest().voltage, unit->maximumVoltage());
+        EXPECT_GE(unit->pressure(), -100.0f);
+        EXPECT_LE(unit->pressure(), 200.0f);
         EXPECT_FLOAT_EQ(unit->pressure(), unit->oldest().pressure());
         EXPECT_FALSE(unit->empty());
         unit->discard();
@@ -142,7 +205,7 @@ TEST_F(TestMCP_H10_B200KPPN, Periodic)
     EXPECT_FALSE(unit->full());
 
     unit->flush();
-    EXPECT_EQ(unit->available(), 0);
+    EXPECT_EQ(unit->available(), 0U);
     EXPECT_TRUE(unit->empty());
     EXPECT_FALSE(unit->full());
 
@@ -163,6 +226,9 @@ TEST_F(TestMCP_H10_B200KPPN, Singleshot)
     uint32_t count{8};
     while (count--) {
         EXPECT_TRUE(unit->measureSingleshot(d));
-        EXPECT_TRUE(std::isfinite(d.pressure()));
+        EXPECT_GE(d.voltage, unit->minimumVoltage());
+        EXPECT_LE(d.voltage, unit->maximumVoltage());
+        EXPECT_GE(d.pressure(), -100.0f);
+        EXPECT_LE(d.pressure(), 200.0f);
     }
 }

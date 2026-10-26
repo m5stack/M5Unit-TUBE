@@ -9,6 +9,7 @@
 #include <M5Unified.h>
 #include <M5UnitUnified.h>
 #include <M5UnitUnifiedTUBE.h>
+#include <wiring/m5_unit_unified_wiring.hpp>  // Board-aware connection helpers (include last)
 
 using namespace m5::unit::mcp_h10;
 
@@ -39,7 +40,7 @@ constexpr float P_RANGE{P_MAX - P_MIN};
 enum : uint8_t {
     C_BG   = 0,  // background + bar background
     C_BAR  = 1,  // pressure bar
-    C_MARK = 2,  // zero marker, border, sub text
+    C_MARK = 2,  // border, scale labels, sub text
     C_TEXT = 3,  // labels, value text
 };
 
@@ -90,7 +91,7 @@ void init_display()
     // Setup palette
     sprite.setPaletteColor(C_BG, TFT_BLACK);
     sprite.setPaletteColor(C_BAR, TFT_BLUE);
-    sprite.setPaletteColor(C_MARK, 0x7BCFu);  // grey
+    sprite.setPaletteColor(C_MARK, TFT_DARKGREY);
     sprite.setPaletteColor(C_TEXT, TFT_WHITE);
 
     sprite.setFont(font);
@@ -131,7 +132,7 @@ void render_pressure(const float pressure, const float voltage, const uint16_t r
 
     // Scale labels below bar
     int32_t scale_y = bar_y + bar_h + 2;
-    sprite.setTextColor((uint8_t)C_MARK);
+    sprite.setTextColor(static_cast<uint8_t>(C_MARK));
     sprite.setTextDatum(textdatum_t::top_left);
     sprite.drawString("-100", 2, scale_y);
     sprite.setTextDatum(textdatum_t::top_center);
@@ -141,13 +142,13 @@ void render_pressure(const float pressure, const float voltage, const uint16_t r
 
     // Pressure value
     auto s = m5::utility::formatString("%.1f kPa", pressure);
-    sprite.setTextColor((uint8_t)C_TEXT);
+    sprite.setTextColor(static_cast<uint8_t>(C_TEXT));
     sprite.setTextDatum(textdatum_t::top_left);
     sprite.drawString(s.c_str(), 2, val_y);
 
     // Voltage and raw (right-aligned on same line for large, next line for small)
     auto s2 = m5::utility::formatString("%.3fV R:%u", voltage, raw);
-    sprite.setTextColor((uint8_t)C_MARK);
+    sprite.setTextColor(static_cast<uint8_t>(C_MARK));
     if (small_display) {
         sprite.setTextDatum(textdatum_t::top_left);
         sprite.drawString(s2.c_str(), 2, sub_y);
@@ -169,27 +170,13 @@ void setup()
 
     init_display();
 
-    auto pin_num_gpio_in  = M5.getPin(m5::pin_name_t::port_b_in);
-    auto pin_num_gpio_out = M5.getPin(m5::pin_name_t::port_b_out);
-    if (pin_num_gpio_in < 0 || pin_num_gpio_out < 0) {
-        M5_LOGW("PortB is not available");
-        Wire.end();
-        pin_num_gpio_in  = M5.getPin(m5::pin_name_t::port_a_pin1);
-        pin_num_gpio_out = M5.getPin(m5::pin_name_t::port_a_pin2);
-    }
-    M5_LOGI("getPin: %d,%d", pin_num_gpio_in, pin_num_gpio_out);
-
-    if (!Units.add(unit, pin_num_gpio_in, pin_num_gpio_out) || !Units.begin()) {
+    // Board-aware GPIO: the input pin of PortB (PortA where the board has no PortB)
+    if (!m5::unit::wiring::addGPIO(Units, unit, m5::unit::wiring::GpioRole::InOnly) || !Units.begin()) {
         M5_LOGE("Failed to begin");
-        if (has_display) {
-            lcd.fillScreen(TFT_RED);
-        }
-        while (true) {
-            m5::utility::delay(10000);
-        }
+        m5::unit::wiring::failStop();
     }
 
-    M5_LOGI("M5UnitUnified has been begun");
+    M5_LOGI("M5UnitUnified initialized");
     M5_LOGI("%s", Units.debugInfo().c_str());
 
     render_pressure(0.f, 0.f, 0);
@@ -216,6 +203,8 @@ void loop()
 
         if (single) {
             unit.stopPeriodicMeasurement();
+            // Clear the previous calibration so that the new zero point is taken from the uncalibrated voltage
+            unit.clearCalibration();
             Data d{};
             if (unit.measureSingleshot(d)) {
                 M5.Log.printf("Single: Pressure:%.2f V:%f Raw:%u\n", d.pressure(), d.voltage, d.raw);
@@ -227,3 +216,36 @@ void loop()
         }
     }
 }
+
+#if !defined(ARDUINO)
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <esp_timer.h>
+
+#if CONFIG_FREERTOS_UNICORE
+// Single-core SoCs: run loop() back-to-back, but every ~2 s yield a 5 ms slice so the IDLE task
+// runs and feeds the task watchdog (default 5 s).
+static inline void feedIdleTaskPeriodically(void)
+{
+    constexpr uint32_t FEED_INTERVAL_MS{2000};
+    constexpr TickType_t FEED_SLEEP_TICKS{pdMS_TO_TICKS(5)};
+    static uint32_t s_last_feed_ms{};
+    const uint32_t now_ms{static_cast<uint32_t>(esp_timer_get_time() / 1000)};
+    if (now_ms - s_last_feed_ms >= FEED_INTERVAL_MS) {
+        s_last_feed_ms = now_ms;
+        vTaskDelay(FEED_SLEEP_TICKS);
+    }
+}
+#endif
+
+extern "C" void app_main(void)
+{
+    setup();
+    for (;;) {
+#if CONFIG_FREERTOS_UNICORE
+        feedIdleTaskPeriodically();
+#endif
+        loop();
+    }
+}
+#endif

@@ -17,7 +17,7 @@
 
 /*!
   @namespace m5
-  @brief Top level namespace of M5stack
+  @brief Top level namespace of M5Stack
  */
 namespace m5 {
 
@@ -26,7 +26,7 @@ namespace m5 {
   @brief Unit-related namespace
  */
 namespace unit {
-//! @brief Alias for UnitTubePressure
+//! @brief Alias of UnitMCP_H10_B200KPPN (Unit TubePressure, SKU:U130)
 using UnitTubePressure = m5::unit::UnitMCP_H10_B200KPPN;
 
 }  // namespace unit
